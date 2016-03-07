@@ -1,0 +1,616 @@
+*cfopen,__________________________Mode Stat,emat   !!!记录开始时间 *cfclos
+/filname,coupling
+/prep7
+
+tanb=4.4513/204                          !定义变形最大挠度 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+*if,cret,eq,1,then
+ALLSEL
+*DO,i,1,CNUM,1
+LOCAL,10+i,0,LocX(i),,LocZ(i),,,ROT(i)   !!!定义编号11的局部坐标系
+*ENDDO
+
+*DO,i,1,CNUM,1
+LOCAL,14+i,0,LocX(i),,LocZ(i),,,ROT(i)   !!!定义编号11的局部坐标系
+*ENDDO
+
+*afun,deg                !!!声明所用角度函数的单位为角度
+PI=3.14159265
+
+s11=40           !第一类组件的尺寸
+s12=20
+
+s21=40           !第二类组件的尺寸
+s22=20
+
+ees=2            !单元大小
+ees1=2           !压电材料单元大小
+nnode1=(s11/ees+1)*(s12/ees+1)
+nnode2=(s21/ees+1)*(s22/ees+1)
+*dim,elenum,,2*enum
+*VREAD,elenum,elenum,txt 
+(f6.0)
+
+
+et,2,targe170       !!!定义第二类单元类型为targe170
+keyopt,2,5,1        !!!第二类单元的K5=1，solid-solid constraint
+et,3,conta175       !!!定义第三类单元类型为conta175
+keyopt,3,2,2        !!!第三类单元的K2=2，MPC
+keyopt,3,12,5       !!!接触面行为，bonded（always）
+
+et,4,shell181       !!!定义第一类单元类型         （主结构）
+sectype,1,shell     !!!定义截面类型
+secdata,1      !!!定义截面厚度
+
+
+et,6,shell181
+et,7,shell181
+et,8,shell181
+et,9,shell181
+sectype,6,shell      !!!定义压电片截面类型
+secdata,1         !!定义压电片截面厚度
+
+MP,EX,10000,63E3     !压电材料属性
+MP,PRXY,10000,0.33
+
+
+mp,ex,10001,alE      !主结构普通材料
+mp,prxy,10001,alv
+mp,dens,10001,2700
+
+csys,0
+wpcsys,,0
+WPROTA,0,90
+allsel,all
+
+rectng,0,204,-70,70    !主结构尺寸
+type,4
+ESIZE,ees                     !element size constant
+secnum,1
+mat,10001
+amesh,1
+
+demx=204    ! maxmium x of design domain
+asel,s,area,,1
+nsla,s,1        !!!通过面选点
+type,2          !!!定义所选点类型为定义的第二类单元类型为targe170
+real,10          !!!实常数10 通过这个实常数建立MPC
+esurf
+allsel,all
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!控制点选择
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!控制点选择
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+cpoint=14     !在长度方向上4等分，由距离根部近到远3,3,3,5分布
+esel,s,type,,4
+nsle,s,1
+*dim,ueac,,cpoint  !定义提取实际位移的数组                
+*dim,contpoint,,cpoint
+*dim,desy,,cpoint 
+
+
+*do,i,1,3,1
+contpoint((i-1)*2+1)=node(i*50,0,-70)   !区域内的控制点分
+contpoint((i-1)*2+2)=node(i*50,0,70)
+*enddo
+
+contpoint(7)=node(100,0,-36)
+contpoint(8)=node(100,0,  0)
+contpoint(9)=node(100,0, 36)
+
+
+
+contpoint(10)=node(demx,0,-70)
+contpoint(11)=node(demx,0,-36)
+contpoint(12)=node(demx,0,  0)
+contpoint(13)=node(demx,0, 36)
+contpoint(14)=node(demx,0, 70)
+
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!目标曲面定义
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+*do,i,1,cpoint,1                                !为线弹性，不考虑几何非线性的优化
+desy(i)=-tanb*nx(contpoint(i))*nx(contpoint(i))/demx                                    !定义bending曲线形状
+*enddo
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+allsel,all
+
+*Get,nelm,ELEM,0,COUNT 
+*dim,sn,,nelm
+*dim,un,,nelm
+*dim,een,,ENUM
+*dim,een1,,ENUM 
+p=4
+q=1
+
+
+*do,i,1,ENUM,1                     !!!define a do-loop,循环定义第i号单元，共enum个
+   MP,EX,i,alE*(15*(xi(i))**p+xi(i))/16     !!!材料插值，为每个单元赋材料弹性模量
+   MP,DENS,i,2700*(xi(i))**q                 !!!为单元材料赋密度，材料为铝，密度与伪密度线性关系
+   MP,PRXY,i,alv
+*enddo
+
+*do,j,1,eny,1
+*do,i,1,enx,1
+ emodif,elenum(i+100*(j-1)),mat,i+100*(j-1)
+ emodif,elenum(6600-100*j+i),mat,i+100*(j-1)
+*enddo
+*enddo
+
+
+
+
+  csys,11
+  wpcsys,,11
+  WPROTA,0,90
+  allsel,all
+  rectng,-s11/2,s11/2,-s12/2,s12/2
+  type,6
+  real,2
+  secnum,6                            !统一的压电片厚度
+  ESIZE,ees1
+  mat,10000
+  amesh,2
+
+  csys,15
+  wpcsys,,15
+  WPROTA,0,90
+  allsel,all
+  rectng,-s11/2,s11/2,-s12/2,s12/2
+  type,6
+  real,2
+  secnum,6                            !统一的压电片厚度
+  ESIZE,ees1
+  mat,10000
+  amesh,3
+
+
+
+  csys,12
+  wpcsys,,12
+  WPROTA,0,90
+  allsel,all
+  rectng,-s21/2,s21/2,-s22/2,s22/2
+  type,7
+  real,2
+  secnum,6                            !统一的压电片厚度
+  ESIZE,ees1
+  mat,10000
+  amesh,4
+  
+  
+  csys,16
+  wpcsys,,16
+  WPROTA,0,90
+  allsel,all
+  rectng,-s21/2,s21/2,-s22/2,s22/2
+  type,7
+  real,2
+  secnum,6                            !统一的压电片厚度
+  ESIZE,ees1
+  mat,10000
+  amesh,5
+  
+  
+ 
+  csys,13
+  wpcsys,,13
+  WPROTA,0,90
+  allsel,all
+  rectng,-s11/2,s11/2,-s12/2,s12/2
+  type,8
+  real,2
+  secnum,6                            !统一的压电片厚度
+  ESIZE,ees1
+  mat,10000
+  amesh,6
+  
+  
+  csys,17
+  wpcsys,,17
+  WPROTA,0,90
+  allsel,all
+  rectng,-s11/2,s11/2,-s12/2,s12/2
+  type,8
+  real,2
+  secnum,6                            !统一的压电片厚度
+  ESIZE,ees1
+  mat,10000
+  amesh,7
+  
+  
+  
+  csys,14
+  wpcsys,,14
+  WPROTA,0,90
+  allsel,all
+  rectng,-s21/2,s21/2,-s22/2,s22/2
+  type,9
+  real,2
+  secnum,6                            !统一的压电片厚度
+  ESIZE,ees1
+  mat,10000
+  amesh,8
+ 
+  csys,18
+  wpcsys,,18
+  WPROTA,0,90
+  allsel,all
+  rectng,-s21/2,s21/2,-s22/2,s22/2
+  type,9
+  real,2
+  secnum,6                            !统一的压电片厚度
+  ESIZE,ees1
+  mat,10000
+  amesh,9
+ 
+  csys,0
+  wpcsys,,0              !修改连接方式
+  allsel,all
+  esel,s,mat,,10000
+  nsle,s,1
+  nsel,r,loc,y,0
+              
+  type,3                        !!!定义类型为已经定义的第三类单元类型为
+  real,10
+  esurf
+  ALLSEL,ALL 
+  gr=0
+ *GET,MAXNOD,NODE,,NUM,MAX                 
+  NDNUM=MAXNOD       !!!获取节点最大编号  
+
+ 
+ fini
+
+
+/solu
+csys,0
+wpcsys,,0
+nsel,s,loc,x,0
+d,all,all
+ALLSEL,ALL 
+
+
+esel,s,type,,4        !加载结构服役载荷
+nsle,s,1              !402行依然有服役载荷数据
+nsel,r,loc,x,demx
+nsel,r,loc,Z,0
+f,all,fz,LATF
+ALLSEL,ALL
+
+*if,PZTMM,eq,1,then
+MXX=314.176*1/(s11/ees+1)*2  !一对压电陶瓷                 
+MZZ=157.088*1/(s12/ees+1)*2  !一对压电陶瓷 
+*dim,anode,,4
+*dim,asspro,,4,2      !行代表4个边的4个对象
+assignMM        !通过形函数向节点移置扭距    
+*endif
+save
+
+ALLSEL,ALL
+ACEL,0,gr,0   !!!指定分析用的笛卡尔坐标系加速度
+solve !求解得到第一个结果文件 ppp01.rst 
+finish 
+*endif
+
+
+/post1
+
+ALLSEL,ALL
+esel,s,type,,4
+nsle,s,1
+
+                            !前六列记录位移，第七列记录节点编号~~~~
+*do,i,1,cpoint,1
+ueac(i)=uy(contpoint(i))     !根据预定义点位置得到预定点的编号
+*enddo
+
+tfysum=0                           !求目标函数
+*do,i,1,cpoint,1
+tfysum=tfysum+(ueac(i)-desy(i))*(ueac(i)-desy(i))/(desy(i)*desy(i))  !计算结构上表面形状与预定形状的残差，此为目标
+*enddo
+
+ALLSEL,ALL
+etable,sen,sene     !!!把stiffness energy制成表格sen//////////   系统整体的柔顺度
+etable,top,topo     !!!把拓扑优化的密度制成表格top，Topo stands for densities used for topological optimization.
+
+SSUM 	       !!! 单元应变能、位移、伪密度求和
+*GET,tcompl,SSUM,,ITEM,sen
+ALLSEL,ALL
+save
+finish 
+
+
+!***********************************************************
+! Analytical Sensitivities for Topo
+!***********************************************************
+
+*if,cret,eq,1,then  
+
+
+/filname,adjoint
+/solu 
+fdele,all,all  !清除集中力
+ddele,all,all  !清除位移约束
+bfdele,all,all !清除
+sfdele,all,all !清除面力
+
+ALLSEL,ALL
+*do,i,1,cpoint,1
+nsel,s,node,,contpoint(i)
+F,ALL,FY,-2*(ueac(i)-desy(i))/(desy(i)*desy(i))
+ALLSEL,ALL
+*enddo
+
+
+nsel,s,loc,x,0
+d,all,all
+ALLSEL,ALL 
+alls 
+solve !求解得到第二个结果文件 ppp02.rst 
+finish 
+
+
+
+
+/filname,coupling 
+resume 
+/post1 
+ALLSEL,ALL
+esel,s,type,,4
+nsle,s,1
+endofs=24 
+*dim,ue1,,nnod,6
+                 !用于储存单元节点位移的向量,维度等于节点数乘以节点自由度
+*dim,eue1,,endofs
+
+*dim,fsen,,enum
+*dim,Fmultisen,,enum
+*dim,nodemm1,,4
+*dim,Fee1,,endofs
+*dim,tcompliance,,1
+
+file,'adjoint','rst', 
+set,1,1 
+*do,j,1,eny+1,1                             !因为受力的不对称性，所以位移需要提取全场的
+*do,i,1,enx+1,1                        
+ curnode=node(ees*(i-1),0,ees*(j-1)-66)     !提取底下基板节点实际发生的位移
+ ue1(i+101*(j-1),1)=ux(curnode)
+ ue1(i+101*(j-1),2)=uy(curnode)
+ ue1(i+101*(j-1),3)=uz(curnode)
+ ue1(i+101*(j-1),4)=rotx(curnode)
+ ue1(i+101*(j-1),5)=roty(curnode)
+ ue1(i+101*(j-1),6)=rotz(curnode)
+*enddo
+*enddo
+
+file,'coupling','rst',  
+set,1,1 
+
+etable,top,topo     !!!把拓扑优化的密度制成表格top，Topo stands for densities used for topological optimization.
+*vget,sn,elem, ,etab,sen, ,2    !!!把sen表的内容在所有单元（缺省的括号内为单元标号，默认所有）上做循环，存到sn里，2--loop on the entnum field
+
+*do,i,1,204,1      
+detab,i,top,1    !!!为设计域以外的实单元    
+*enddo
+ 
+*do,i,1,70,1      
+detab,102*i,top,1    !!!为设计域以外的实单元
+detab,102*i-1,top,1    !!!为设计域以外的实单元     
+*enddo
+ 
+*do,i,6937,7140,1      
+detab,i,top,1    !!!为设计域以外的实单元    
+*enddo
+
+
+*do,j,1,eny,1
+*do,i,1,enx,1                              !就采用了一半的变量 
+
+    mm1=0
+  *do,k,1,endofs,1
+    Fee1(k)=0
+  *enddo 
+    el1=elenum(i+100*(j-1))
+    
+   
+   nodemm1(1)=i+101*(j-1)                    !每一行的节点数比单元数多一个  
+   nodemm1(2)=i+1+101*(j-1)
+   nodemm1(3)=i+1+101*j
+   nodemm1(4)=i+101*j 
+   
+
+  *do,j1,1,4,1 
+     *GET,Fee1(6*j1-5),ELEM,el1,efor,Nelem(el1,j1),FX  !提取单元的节点力
+     *GET,Fee1(6*j1-4),ELEM,el1,efor,Nelem(el1,j1),FY
+     *GET,Fee1(6*j1-3),ELEM,el1,efor,Nelem(el1,j1),FZ
+     *GET,Fee1(6*j1-2),ELEM,el1,efor,Nelem(el1,j1),MX
+     *GET,Fee1(6*j1-1),ELEM,el1,efor,Nelem(el1,j1),MY
+     *GET,Fee1(6*j1  ),ELEM,el1,efor,Nelem(el1,j1),MZ 
+   
+      eue1(6*j1-5)=ue1(nodemm1(j1),1)
+      eue1(6*j1-4)=ue1(nodemm1(j1),2)
+      eue1(6*j1-3)=ue1(nodemm1(j1),3)
+      eue1(6*j1-2)=ue1(nodemm1(j1),4)
+      eue1(6*j1-1)=ue1(nodemm1(j1),5)
+      eue1(6*j1)=  ue1(nodemm1(j1),6)
+          
+      Fee1(6*j1-5)=-Fee1(6*j1-5)              !将单元对节点的力，转换为节点对单元的力，即相互作用力
+      Fee1(6*j1-4)=-Fee1(6*j1-4)
+      Fee1(6*j1-3)=-Fee1(6*j1-3)
+      Fee1(6*j1-2)=-Fee1(6*j1-2)
+      Fee1(6*j1-1)=-Fee1(6*j1-1)
+      Fee1(6*j1  )=-Fee1(6*j1  )
+           
+  *enddo
+  *do,k,1,endofs,1
+      mm1=mm1+Fee1(k)*eue1(k)
+  *enddo  
+!!!!!!!!   计算形状误差函数的灵敏度
+ fsen(i+100*(j-1))=2*(15*p*(xi(i+100*(j-1)))**(p-1)+1)*mm1/(15*xi(i+100*(j-1))**p+xi(i+100*(j-1)))   !求目标函数的灵敏度
+
+!!!!!!!!   计算柔顺度的灵敏度
+ een1(i+100*(j-1))=-2*(15*p*(xi(i+100*(j-1)))**(p-1)+1)*sn(elenum(i+100*(j-1)))/(15*xi(i+100*(j-1))**p+xi(i+100*(j-1)))	 !!!!设计变量对每个单元的灵敏度  
+ detab,elenum(i+100*(j-1)),top,xi(i+100*(j-1))
+ detab,elenum(6600-100*j+i),top,xi(i+100*(j-1))
+*enddo
+*enddo
+ALLSEL,ALL
+
+
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!出图所需数据
+*cfopen,aresult,txt,,append
+!    *vwrite,
+!    ("compliance",16X,"fysum")
+    *vwrite,tcompl,tfysum
+     (f8.4,f8.4)
+*cfclos
+
+
+*if,iter,eq,0,then
+
+allsel,all
+esel,s,type,,4
+nsle,s,1
+*dim,dataout,,7313
+*do,i,1,71,1    !i represents 行号。 j represents 列号 
+*do,j,1,103,1
+nownode=node(ees*(j-1),0,-70+(i-1)*ees)
+dataout(j+103*(i-1))=-uy(nownode)
+*enddo
+*enddo
+
+*cfopen,dataouty%iter%,txt
+*vwrite,dataout(1)
+(F10.7)
+*cfclos
+*endif
+
+
+*if,iter,eq,5,then
+
+allsel,all
+esel,s,type,,4
+nsle,s,1
+*dim,dataout,,7313
+*do,i,1,71,1    !i represents 行号。 j represents 列号 
+*do,j,1,103,1
+nownode=node(ees*(j-1),0,-70+(i-1)*ees)
+dataout(j+103*(i-1))=-uy(nownode)
+*enddo
+*enddo
+
+*cfopen,dataouty%iter%,txt
+*vwrite,dataout(1)
+(F10.7)
+*cfclos
+*endif
+
+
+*if,iter,eq,10,then
+
+allsel,all
+esel,s,type,,4
+nsle,s,1
+*dim,dataout,,7313
+*do,i,1,71,1    !i represents 行号。 j represents 列号 
+*do,j,1,103,1
+nownode=node(ees*(j-1),0,-70+(i-1)*ees)
+dataout(j+103*(i-1))=-uy(nownode)
+*enddo
+*enddo
+
+*cfopen,dataouty%iter%,txt
+*vwrite,dataout(1)
+(F10.7)
+*cfclos
+*endif
+
+
+*if,iter,eq,50,then
+
+allsel,all
+esel,s,type,,4
+nsle,s,1
+*dim,dataout,,7313
+*do,i,1,71,1    !i represents 行号。 j represents 列号 
+*do,j,1,103,1
+nownode=node(ees*(j-1),0,-70+(i-1)*ees)
+dataout(j+103*(i-1))=-uy(nownode)
+*enddo
+*enddo
+
+*cfopen,dataouty%iter%,txt
+*vwrite,dataout(1)
+(F10.7)
+*cfclos
+*endif
+
+
+
+*if,mod(iter,100),eq,0,then
+
+allsel,all
+esel,s,type,,4
+nsle,s,1
+*dim,dataout,,7313
+*do,i,1,71,1    !i represents 行号。 j represents 列号 
+*do,j,1,103,1
+nownode=node(ees*(j-1),0,-70+(i-1)*ees)
+dataout(j+103*(i-1))=-uy(nownode)
+*enddo
+*enddo
+
+*cfopen,dataouty%iter%,txt
+*vwrite,dataout(1)
+(F10.7)
+*cfclos
+*endif
+
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+*cfopen,input,dp    !!!Open a "command" file
+*vwrite,
+("3300,4")     !!!第一行写的内容
+*do,i,1,ENUM,1	
+   *vlen,1        !!!!指定数组变量操作中要用的行数
+   *vwrite,elenum(i),centrx(elenum(i)),centry(elenum(i)),centrz(elenum(i)),fsen(i),xi(i)
+   ("dp,"f10.0","f10.3","f10.3","f10.3","e19.5","f10.5)    !!!!将以上几个变量值以科学计数法写入表格
+*enddo
+*cfclos
+/sys,sen_ft        !!!向操作系统传送命令串
+filter             !!!灵敏度过滤完毕      
+*do,i,1,enum
+fsen(i)=een(i)
+*enddo
+
+*cfopen,input,dp    !!!Open a "command" file
+*vwrite,
+("3300,4")     !!!第一行写的内容
+*do,i,1,ENUM,1	
+   *vlen,1        !!!!指定数组变量操作中要用的行数
+   *vwrite,elenum(i),centrx(elenum(i)),centry(elenum(i)),centrz(elenum(i)),een1(i),xi(i)
+   ("dp,"f10.0","f10.3","f10.3","f10.3","e19.5","f10.5)    !!!!将以上几个变量值以科学计数法写入表格
+*enddo
+*cfclos
+/sys,sen_ft        !!!向操作系统传送命令串
+filter             !!!灵敏度过滤完毕
+
+
+
+
+*endif 

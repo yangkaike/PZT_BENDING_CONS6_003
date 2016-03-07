@@ -1,0 +1,70 @@
+m11x=MXX*cos(com1a)
+m11z=MXX*sin(com1a)
+m12x=MZZ*sin(com1a)
+m12z=MZZ*cos(com1a)
+
+m21x=MXX*cos(com2a)
+m21z=MXX*sin(com2a)
+m22x=MZZ*sin(com2a)
+m22z=MZZ*cos(com2a)
+
+ 
+FCUM,ADD,1,             !指定所有的力为叠加形式
+
+
+!6
+length=40
+width=20                        
+epro=6
+asspro(1,1)=-m11x         
+asspro(1,2)= m11Z         
+asspro(2,1)= m12x          
+asspro(2,2)= m12Z                                       
+asspro(3,1)= m11x                                              
+asspro(3,2)=-m11Z                                             
+asspro(4,1)=-m12x          
+asspro(4,2)=-m12Z
+assigning2
+
+!7
+length=40
+width=20                        
+epro=7
+asspro(1,1)=-m21x         
+asspro(1,2)= m21Z         
+asspro(2,1)= m22x          
+asspro(2,2)= m22Z                                       
+asspro(3,1)= m21x                                              
+asspro(3,2)=-m21Z                                             
+asspro(4,1)=-m22x          
+asspro(4,2)=-m22Z
+assigning2
+
+!8
+length=40
+width=20                        
+epro=8
+asspro(1,1)=-m11x         
+asspro(1,2)=-m11Z         
+asspro(2,1)=-m12x          
+asspro(2,2)= m12Z                                       
+asspro(3,1)= m11x                                              
+asspro(3,2)= m11Z                                             
+asspro(4,1)= m12x          
+asspro(4,2)=-m12Z
+assigning2
+
+
+!9
+length=40
+width=20                        
+epro=9
+asspro(1,1)=-m21x         
+asspro(1,2)=-m21Z         
+asspro(2,1)=-m22x          
+asspro(2,2)= m22Z                                       
+asspro(3,1)= m21x                                              
+asspro(3,2)= m21Z                                             
+asspro(4,1)= m22x          
+asspro(4,2)=-m22Z
+assigning2  

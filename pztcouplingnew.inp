@@ -1,0 +1,824 @@
+
+/UIS,MSGPOP,3                 !# Avoid pumping of warnings     
+
+/CMAP,'blue','cmap','c:\cmap\'
+!!读入设计变量
+/INPUT,'iter','mac','.'       !# Iteration number 
+/INPUT,'xi_i%iter%','mac','.'
+
+/filename,coupling,1
+enum=3300
+CNUM=4              !组件的个数，考虑对称性 
+enx=100
+eny=33
+LATF=160
+alE=70e3
+alv=0.32
+*DIM,comp,char,CNUM,10
+
+  com1x = xi(3301)
+  com1z = xi(3302)
+  com1a = xi(3303)
+  com2x = xi(3304)
+  com2z = xi(3305)
+  com2a = xi(3306)
+  
+  com3x = com1x
+  com3z = -com1z
+  com3a = -com1a
+  com4x = com2x
+  com4z = -com2z
+  com4a = -com2a
+  
+  *dim,vari,char,enum,10 
+  *do,i,1,9,1
+   vari(i)='ph0000%i%'
+  *enddo
+  *do,i,10,99,1
+     vari(i)='ph000%i%'
+  *enddo
+  *do,i,100,999,1
+     vari(i)='ph00%i%'
+  *enddo
+  *do,i,1000,enum,1
+     vari(i)='ph0%i%'
+  *enddo 
+  
+*dim,gvari,char,CNUM/2*3,10   !!!定义几何设计变量存储char型数组 
+
+gvari(1)='com1x'     !!!内部存的为‘com1x’名称
+gvari(2)='com1z'
+gvari(3)='com1a'
+               
+gvari(4)='com2x'
+gvari(5)='com2z'
+gvari(6)='com2a'
+
+
+nnod=3434                  !灵敏度计算需要提取的节点信息的个数 （200/2+1）*（66/2+1）
+*DIM,LocX,,CNUM,1      !!!定义装组件变量信息的数值（缺省）数组，2行1列
+*DIM,LocZ,,CNUM
+*DIM,Rot,,CNUM
+*DIM,ven,,enum
+*DO,i,1,CNUM,1
+   LocX(i)=com%i%x
+   LocZ(i)=com%i%Z
+   Rot(i)=com%i%a
+*ENDDO 
+
+cret=1     !!!相当于case语句，是判断用的
+sefi=1
+PZTMM=1    !!判断是否加载SMA等效力
+PARSAV,ALL,'original_data',' ',' '     !!!保存所有数据于original_data文件  
+
+
+
+modeling_modnew  !!
+
+ALLSEL,ALL
+compl=tcompl   !!!把整体应变能赋给compl
+fysum=tfysum
+volum=0 
+*do,n,1,enum,1
+   volum=volum+2*xi(n)    !!!设计域体积求和，伪密度之和即为体积；
+*enddo
+
+*do,i,1,enum,1
+   ven(i)=een(i)        !!!过滤后的灵敏度存于数组；   
+*enddo
+
+
+finish
+*if,cret,eq,1,then
+/post1
+/AUTO,1        !!!自动调整模式  
+/view,,,1,
+/PLOPTS,MINM,0 
+/REP,FAST       
+/DSCALE,,OFF     !!!调整放大因子，无失真显示，缺省为1；
+/ANG,1           
+/PLOPTS,WP,0     !!!不显示工作平面；
+/TRIAD,OFF       !!!控制是否显示整体坐标系标志，并对其位置进行定义,不显示；
+ALLSEL,ALL       !!!选择所有实体；
+/rgb,index,100,100,100,0    !!!指定颜色强度
+/rgb,index,80,80,80,13      
+/rgb,index,60,60,60,14
+/rgb,index,0,0,0,15
+!/SHRINK,0.2    !!!缩小显示比例，对于实体单元更为明显           
+ESEL,S,ETAB,top,0.0001,1.2    !!!选择一个新的单元集，表格中top最小0，最大1.2之间的值
+
+ESEL,A,type,,6
+ESEL,A,type,,7
+ESEL,A,type,,8
+ESEL,A,type,,9
+/REPLOT 
+EPLOT
+
+
+/title,Optimization.Volum:%volum%,Compl:%Compl%,fysum:%fysum%
+ /show,jpeg,,0      !!!????
+PLETAB,TOP,NOAV    
+JPEG,QUAL,100,  
+JPEG,COLOR,2
+/GFILE,800,   
+/show,close
+ finish  
+ *endif
+!***********************************************************
+! Prepare the different sensitivity
+!***********************************************************
+
+MODMSH,DETACH   !!!实体模型与FE模型关系控制
+*GET,MAXNOD,NODE,,NUM,MAX   
+ NDNUM=MAXNOD       !!!获取节点最大编号
+cret=0
+dds=0.2       !!!步长
+dda=-0.5         !!!decided according to edis!!!
+
+
+!差分fysum函数的灵敏度   针对激发后的情况
+!***************** The 1st CM ******************************
+!***************** The 1st DV ******************************
+*DO,curcomp,1,CNUM/2,1
+/prep7
+
+dx=dds
+ddy=0
+dz=0
+da=0
+
+MODMSH,DETACH 
+CSYS,0   !!!默认笛卡尔坐标系
+wpcsys,,0  !!!定义工作坐标系
+allsel,all !!!选择所有实体  
+ESEL,s,type,,5+curcomp   !!!
+ESEL,a,type,,7+curcomp   !!!
+nsle,s,all    !!!选择单元上所有节点作为新子集（node select from element---nsle）
+ 
+*do,i,1,NDNUM,1    !!!NDNUM为组件上节点编号最大值
+   *if,NSEL(i),eq,1,then       !!!判断如果所选节点是上一步所建子集中的节点，则做差分
+      NMODIF,i,NX(i)+dx,NY(i)+ddy,NZ(i)+dz
+   *endif
+*enddo
+
+*if,cret,eq,0,then
+
+!***********************************************************
+! Solution LS
+!***********************************************************
+/solu
+allsel,all
+fdele,all,all  !清除集中力     
+ddele,all,all  !清除位移约束   
+bfdele,all,all !清除           
+sfdele,all,all !清除面力       
+csys,0
+wpcsys,,0
+nsel,s,loc,x,0
+d,all,all
+ALLSEL,ALL 
+
+
+esel,s,type,,4        !加载结构服役载荷
+nsle,s,1              !402行依然有服役载荷数据
+nsel,r,loc,x,demx
+nsel,r,loc,Z,0
+f,all,fz,LATF
+ALLSEL,ALL
+assignMM              !组件移动后更新载荷偏置
+csys,0                !组件4加力
+wpcsys,,0
+allsel,all
+ACEL,0,gr,0   !!!指定分析用的笛卡尔坐标系加速度
+solve !求解得到第一个结果文件 ppp01.rst 
+finish 
+*endif
+
+
+/post1
+
+ALLSEL,ALL
+esel,s,type,,4
+nsle,s,1
+                            !前六列记录位移，第七列记录节点编号~~~~
+*do,i,1,cpoint,1
+ueac(i)=uy(contpoint(i))     !根据预定义点位置得到预定点的编号
+*enddo
+
+tfysum=0                           !求目标函数
+*do,i,1,cpoint,1
+tfysum=tfysum+(ueac(i)-desy(i))*(ueac(i)-desy(i))/(desy(i)*desy(i))  !计算结构上表面形状与预定形状的残差，此为目标
+*enddo
+
+
+ALLSEL,ALL
+etable,sen,sene     !!!把stiffness energy制成表格sen//////////   系统整体的柔顺度
+etable,top,topo     !!!把拓扑优化的密度制成表格top，Topo stands for densities used for topological optimization.
+SSUM 	       !!! 单元应变能、位移、伪密度求和
+*GET,tcompl,SSUM,,ITEM,sen
+ALLSEL,ALL
+
+
+comp_%curcomp%x=(tcompl-compl)/dds   !!!总体应变能差分求对设计变量的灵敏度
+fysum_%curcomp%x=(tfysum-fysum)/dds
+
+/prep7
+MODMSH,DETACH 
+CSYS,0
+wpcsys,,0
+allsel,all
+ESEL,s,type,,5+curcomp   !!!
+ESEL,a,type,,7+curcomp   !!!
+nsle,s,all
+ 
+*do,i,1,NDNUM,1
+   *if,NSEL(i),eq,1,then
+      NMODIF,i,NX(i)-dx,NY(i)-ddy,NZ(i)-dz
+   *endif
+*enddo
+!***************** The 2nd DV ******************************
+
+/prep7                                                                                    
+                                                                                          
+dx=0                                                                                   
+ddy=0                                                                                     
+dz=dds                                                                                      
+da=0                                                                                      
+                                                                                          
+MODMSH,DETACH                                                                             
+CSYS,0   !!!默认笛卡尔坐标系                                                              
+wpcsys,,0  !!!定义工作坐标系                                                              
+allsel,all !!!选择所有实体                                                                
+ESEL,s,type,,5+curcomp   !!!                                                                                                                   
+nsle,s,all    !!!选择单元上所有节点作为新子集（node select from element---nsle）          
+                                                                                          
+*do,i,1,NDNUM,1    !!!NDNUM为组件上节点编号最大值                                         
+   *if,NSEL(i),eq,1,then       !!!判断如果所选节点是上一步所建子集中的节点，则做差分      
+      NMODIF,i,NX(i)+dx,NY(i)+ddy,NZ(i)+dz                                                
+   *endif                                                                                 
+*enddo                 
+dz=-dz
+
+MODMSH,DETACH                                                                             
+CSYS,0   !!!默认笛卡尔坐标系                                                              
+wpcsys,,0  !!!定义工作坐标系                                                              
+allsel,all !!!选择所有实体                                                                
+ESEL,s,type,,7+curcomp   !!!                                                                                                                   
+nsle,s,all    !!!选择单元上所有节点作为新子集（node select from element---nsle）          
+                                                                                          
+*do,i,1,NDNUM,1    !!!NDNUM为组件上节点编号最大值                                         
+   *if,NSEL(i),eq,1,then       !!!判断如果所选节点是上一步所建子集中的节点，则做差分      
+      NMODIF,i,NX(i)+dx,NY(i)+ddy,NZ(i)+dz                                                
+   *endif                                                                                 
+*enddo                 
+dz=-dz
+
+
+
+
+*if,cret,eq,0,then
+
+!***********************************************************
+! Solution LS
+!***********************************************************
+/solu 
+allsel,all
+fdele,all,all  !清除集中力     
+ddele,all,all  !清除位移约束   
+bfdele,all,all !清除           
+sfdele,all,all !清除面力       
+csys,0
+wpcsys,,0
+nsel,s,loc,x,0
+d,all,all
+ALLSEL,ALL 
+
+
+esel,s,type,,4        !加载结构服役载荷
+nsle,s,1              !402行依然有服役载荷数据
+nsel,r,loc,x,demx
+nsel,r,loc,Z,0
+f,all,fz,LATF
+ALLSEL,ALL
+assignMM              !组件移动后更新载荷偏置
+csys,0                !组件4加力
+wpcsys,,0
+allsel,all
+ACEL,0,gr,0   !!!指定分析用的笛卡尔坐标系加速度
+solve !求解得到第一个结果文件 ppp01.rst 
+finish 
+*endif
+
+
+/post1
+
+ALLSEL,ALL
+esel,s,type,,4
+nsle,s,1
+                            !前六列记录位移，第七列记录节点编号~~~~
+*do,i,1,cpoint,1
+ueac(i)=uy(contpoint(i))     !根据预定义点位置得到预定点的编号
+*enddo
+
+tfysum=0                           !求目标函数
+*do,i,1,cpoint,1
+tfysum=tfysum+(ueac(i)-desy(i))*(ueac(i)-desy(i))/(desy(i)*desy(i))  !计算结构上表面形状与预定形状的残差，此为目标
+*enddo
+
+
+ALLSEL,ALL
+etable,sen,sene     !!!把stiffness energy制成表格sen//////////   系统整体的柔顺度
+etable,top,topo     !!!把拓扑优化的密度制成表格top，Topo stands for densities used for topological optimization.
+SSUM 	       !!! 单元应变能、位移、伪密度求和
+*GET,tcompl,SSUM,,ITEM,sen
+ALLSEL,ALL
+
+comp_%curcomp%z=(tcompl-compl)/dds   !!!总体应变能差分求对设计变量的灵敏度
+fysum_%curcomp%z=(tfysum-fysum)/dds
+
+/prep7                                                                                    
+MODMSH,DETACH                                                                             
+CSYS,0   !!!默认笛卡尔坐标系                                                              
+wpcsys,,0  !!!定义工作坐标系                                                              
+allsel,all !!!选择所有实体                                                                
+ESEL,s,type,,5+curcomp   !!!                                                                                                                   
+nsle,s,all    !!!选择单元上所有节点作为新子集（node select from element---nsle）          
+                                                                                          
+*do,i,1,NDNUM,1    !!!NDNUM为组件上节点编号最大值                                         
+   *if,NSEL(i),eq,1,then       !!!判断如果所选节点是上一步所建子集中的节点，则做差分      
+      NMODIF,i,NX(i)-dx,NY(i)-ddy,NZ(i)-dz                                                
+   *endif                                                                                 
+*enddo                 
+
+dz=-dz
+MODMSH,DETACH                                                                             
+CSYS,0   !!!默认笛卡尔坐标系                                                              
+wpcsys,,0  !!!定义工作坐标系                                                              
+allsel,all !!!选择所有实体                                                                
+ESEL,s,type,,7+curcomp   !!!                                                                                                                   
+nsle,s,all    !!!选择单元上所有节点作为新子集（node select from element---nsle）          
+                                                                                          
+*do,i,1,NDNUM,1    !!!NDNUM为组件上节点编号最大值                                         
+   *if,NSEL(i),eq,1,then       !!!判断如果所选节点是上一步所建子集中的节点，则做差分      
+      NMODIF,i,NX(i)-dx,NY(i)-ddy,NZ(i)-dz                                                
+   *endif                                                                                 
+*enddo                 
+
+!***************** The 3nd DV *****************************
+/prep7
+MODMSH,DETACH  
+  dx=0
+  ddy=0
+  dz=0
+  da=dda
+
+  CSYS,0
+  wpcsys,,0
+  allsel,all
+  ESEL,s,type,,5+curcomp   !!!
+  nsle,s,all
+
+  *AFUN,deg    !!!用角度作为输入、输出角度函数的单位
+
+  *do,i,1,NDNUM,1    !!!完成从局部坐标系（组件坐标系）向全局坐标系转换            
+     *if,NSEL(i),eq,1,then
+     VecX=NX(i)-LocX(curcomp)
+     Vecz=NZ(i)-LocZ(curcomp)
+     NVecX=VecX*cos(da)-Vecz*sin(da)
+     NVecz=VecX*sin(da)+Vecz*cos(da)
+     NMODIF,i,LocX(curcomp)+NVecX,Ny(i)+ddy,LocZ(curcomp)+NVecz   !!!求空间任一点的位置用ox=oo1=o1x
+     *endif
+  *enddo
+  
+  
+ MODMSH,DETACH  
+ allsel,all
+ ESEL,s,type,,7+curcomp   !!!
+ da=-da                             !对称组件的角度方向相反
+ nsle,s,all
+
+ *AFUN,deg    !!!用角度作为输入、输出角度函数的单位
+
+ *do,i,1,NDNUM,1    !!!完成从局部坐标系（组件坐标系）向全局坐标系转换            
+     *if,NSEL(i),eq,1,then
+     VecX=NX(i)-LocX(curcomp+2)
+     Vecz=NZ(i)-LocZ(curcomp+2)
+     NVecX=VecX*cos(da)-Vecz*sin(da)
+     NVecz=VecX*sin(da)+Vecz*cos(da)
+     NMODIF,i,LocX(curcomp+2)+NVecX,Ny(i)+ddy,LocZ(curcomp+2)+NVecz   !!!求空间任一点的位置用ox=oo1=o1x
+     *endif
+  *enddo
+   da=-da                                        !调回da方向
+
+*if,cret,eq,0,then
+
+!***********************************************************
+! Solution LS
+!***********************************************************
+/solu
+allsel,all
+fdele,all,all  !清除集中力     
+ddele,all,all  !清除位移约束   
+bfdele,all,all !清除           
+sfdele,all,all !清除面力       
+csys,0
+wpcsys,,0
+nsel,s,loc,x,0
+d,all,all
+ALLSEL,ALL 
+
+
+esel,s,type,,4        !加载结构服役载荷
+nsle,s,1              !402行依然有服役载荷数据
+nsel,r,loc,x,demx
+nsel,r,loc,Z,0
+f,all,fz,LATF
+ALLSEL,ALL
+assignMM              !组件移动后更新载荷偏置
+csys,0                !组件4加力
+wpcsys,,0
+allsel,all
+ACEL,0,gr,0   !!!指定分析用的笛卡尔坐标系加速度
+solve !求解得到第一个结果文件 ppp01.rst 
+finish 
+*endif
+
+
+/post1
+
+ALLSEL,ALL
+esel,s,type,,4
+nsle,s,1
+                            !前六列记录位移，第七列记录节点编号~~~~
+*do,i,1,cpoint,1
+ueac(i)=uy(contpoint(i))     !根据预定义点位置得到预定点的编号
+*enddo
+
+tfysum=0                           !求目标函数
+*do,i,1,cpoint,1
+tfysum=tfysum+(ueac(i)-desy(i))*(ueac(i)-desy(i))/(desy(i)*desy(i))  !计算结构上表面形状与预定形状的残差，此为目标
+*enddo
+
+
+ALLSEL,ALL
+etable,sen,sene     !!!把stiffness energy制成表格sen//////////   系统整体的柔顺度
+etable,top,topo     !!!把拓扑优化的密度制成表格top，Topo stands for densities used for topological optimization.
+SSUM 	       !!! 单元应变能、位移、伪密度求和
+*GET,tcompl,SSUM,,ITEM,sen
+ALLSEL,ALL
+
+comp_%curcomp%a=(tcompl-compl)/(-dda)   !!!总体应变能差分求对设计变量的灵敏度
+fysum_%curcomp%a=(tfysum-fysum)/(-dda)
+
+/prep7
+ da=-da                                      !反方向转动
+ MODMSH,DETACH  
+ CSYS,0
+ wpcsys,,0
+ allsel,all
+ ESEL,s,type,,5+curcomp   !!!
+ nsle,s,all
+
+ *AFUN,deg    !!!用角度作为输入、输出角度函数的单位
+
+ *do,i,1,NDNUM,1    !!!完成从局部坐标系（组件坐标系）向全局坐标系转换            
+    *if,NSEL(i),eq,1,then
+    VecX=NX(i)-LocX(curcomp)
+    Vecz=NZ(i)-LocZ(curcomp)
+    NVecX=VecX*cos(da)-Vecz*sin(da)
+    NVecz=VecX*sin(da)+Vecz*cos(da)
+    NMODIF,i,LocX(curcomp)+NVecX,Ny(i)+ddy,LocZ(curcomp)+NVecz   !!!求空间任一点的位置用ox=oo1=o1x
+    *endif
+ *enddo
+
+MODMSH,DETACH  
+allsel,all
+ESEL,s,type,,7+curcomp   !!!
+da=-da                             !对称组件的角度方向相反
+nsle,s,all
+
+*AFUN,deg    !!!用角度作为输入、输出角度函数的单位
+
+*do,i,1,NDNUM,1    !!!完成从局部坐标系（组件坐标系）向全局坐标系转换            
+    *if,NSEL(i),eq,1,then
+    VecX=NX(i)-LocX(curcomp+2)
+    Vecz=NZ(i)-LocZ(curcomp+2)
+    NVecX=VecX*cos(da)-Vecz*sin(da)
+    NVecz=VecX*sin(da)+Vecz*cos(da)
+    NMODIF,i,LocX(curcomp+2)+NVecX,Ny(i)+ddy,LocZ(curcomp+2)+NVecz   !!!求空间任一点的位置用ox=oo1=o1x
+    *endif
+ *enddo
+ *ENDDO
+!#########################################################################
+!#    overlap constraints
+!#########################################################################
+*AFUN,deg
+cirnum=4
+*DIM,lccircrd,ARRAY,cirnum,3,CNUM/2
+*DIM,circrd,ARRAY,cirnum,3,CNUM/2
+*do,i,1,CNUM-3,1
+  lccircrd(1,1,i)=10
+   lccircrd(1,2,i)=0
+   lccircrd(1,3,i)=14.15      !!!包络圆圆心坐标，每个组件用4个包络圆描述
+   lccircrd(2,1,i)=10
+   lccircrd(2,2,i)=0
+   lccircrd(2,3,i)=14.15
+   lccircrd(3,1,i)=-10
+   lccircrd(3,2,i)=0
+   lccircrd(3,3,i)=14.15
+   lccircrd(4,1,i)=-10
+   lccircrd(4,2,i)=0
+   lccircrd(4,3,i)=14.15
+   *do,cir,1,cirnum,1
+       circrd(cir,1,i)=cos(Rot(i))*lccircrd(cir,1,i)+sin(Rot(i))*lccircrd(cir,2,i)+LocX(i)
+      circrd(cir,2,i)=-sin(Rot(i))*lccircrd(cir,1,i)+cos(Rot(i))*lccircrd(cir,2,i)+Locz(i)
+      circrd(cir,3,i)=lccircrd(cir,3,i)     !!!包络圆半径不变
+   *enddo
+*enddo
+ 
+*do,i,2,CNUM-2,1
+   lccircrd(1,1,i)=10
+   lccircrd(1,2,i)=0
+   lccircrd(1,3,i)=14.15      !!!包络圆圆心坐标，每个组件用4个包络圆描述
+   lccircrd(2,1,i)=10
+   lccircrd(2,2,i)=0
+   lccircrd(2,3,i)=14.15
+   lccircrd(3,1,i)=-10
+   lccircrd(3,2,i)=0
+   lccircrd(3,3,i)=14.15
+   lccircrd(4,1,i)=-10
+   lccircrd(4,2,i)=0
+   lccircrd(4,3,i)=14.15
+   *do,cir,1,cirnum,1
+      circrd(cir,1,i)=cos(Rot(i))*lccircrd(cir,1,i)+sin(Rot(i))*lccircrd(cir,2,i)+LocX(i)
+      circrd(cir,2,i)=-sin(Rot(i))*lccircrd(cir,1,i)+cos(Rot(i))*lccircrd(cir,2,i)+Locz(i)
+      circrd(cir,3,i)=lccircrd(cir,3,i)     !!!包络圆半径不变
+   *enddo
+*enddo
+ 
+
+
+
+ 
+*DIM,Cst,ARRAY,16  !!!定义16元素数组，元素个数根据约束个数而定 组件之间的约束有96个，再加上一半组件与边界的32个
+*dim,Csen,array,16,cnum/2*3  !!!定义16行cnum*3列数组，行数有约束个数而定，列数固定不变
+*do,i,1,16,1
+   *do,j,1,cnum/2*3,1
+      Csen(i,j)=0   !!!所有元素初值置零
+   *enddo
+*enddo
+
+
+c=0
+i=1
+j=2
+  *do,in,1,cirnum,1
+        *do,jn,1,cirnum,1
+            c=c+1
+            Cst(c)=(circrd(in,1,i)-circrd(jn,1,j))**2+(circrd(in,2,i)-circrd(jn,2,j))**2-(circrd(in,3,i)+circrd(jn,3,j))**2
+            Csen(c,i*3-2)=2*(circrd(in,1,i)-circrd(jn,1,j))  
+            Csen(c,i*3-1)=2*(circrd(in,2,i)-circrd(jn,2,j))
+            
+            Csen(c,j*3-2)=-2*(circrd(in,1,i)-circrd(jn,1,j))
+            Csen(c,j*3-1)=-2*(circrd(in,2,i)-circrd(jn,2,j))        
+         *enddo
+      *enddo
+
+*dim,cstold,,16
+*do,i,1,16,1                  !保存之前各个干涩圆的距离值
+cstold(i)=Cst(i)
+*enddo
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!准备对角度变量进行差分，计算灵敏度
+!---------------------1a-----------------------------------------------
+dda=0.2
+Rot(1)=Rot(1)+dda                !对变量com1a进行一个扰动
+Rot(3)=Rot(3)-dda
+ 
+ 
+*do,i,1,CNUM-3,1
+   *do,cir,1,cirnum,1
+       circrd(cir,1,i)=cos(Rot(i))*lccircrd(cir,1,i)+sin(Rot(i))*lccircrd(cir,2,i)+LocX(i)
+      circrd(cir,2,i)=-sin(Rot(i))*lccircrd(cir,1,i)+cos(Rot(i))*lccircrd(cir,2,i)+Locz(i)
+      circrd(cir,3,i)=lccircrd(cir,3,i)     !!!包络圆半径不变
+   *enddo
+*enddo
+ 
+*do,i,2,CNUM-2,1
+  *do,cir,1,cirnum,1
+      circrd(cir,1,i)=cos(Rot(i))*lccircrd(cir,1,i)+sin(Rot(i))*lccircrd(cir,2,i)+LocX(i)
+      circrd(cir,2,i)=-sin(Rot(i))*lccircrd(cir,1,i)+cos(Rot(i))*lccircrd(cir,2,i)+Locz(i)
+      circrd(cir,3,i)=lccircrd(cir,3,i)     !!!包络圆半径不变
+   *enddo
+*enddo
+ 
+c=0
+i=1
+j=2
+      *do,in,1,cirnum,1
+        *do,jn,1,cirnum,1
+            c=c+1
+            Cst(c)=(circrd(in,1,i)-circrd(jn,1,j))**2+(circrd(in,2,i)-circrd(jn,2,j))**2-(circrd(in,3,i)+circrd(jn,3,j))**2
+       
+         *enddo
+      *enddo
+ 
+ *do,i,1,16,1
+ Csen(i,3)=( Cst(i)-cstold(i))/dda
+*enddo
+ 
+ 
+Rot(1)=Rot(1)-dda                !对变量com1a进行恢复
+Rot(3)=Rot(3)+dda
+ 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!准备对角度变量进行差分，计算灵敏度
+!---------------------2a-----------------------------------------------
+ 
+Rot(2)=Rot(2)+dda                !对变量com2a进行一个扰动
+Rot(4)=Rot(4)-dda
+ 
+ 
+*do,i,1,CNUM-3,1
+   *do,cir,1,cirnum,1
+       circrd(cir,1,i)=cos(Rot(i))*lccircrd(cir,1,i)+sin(Rot(i))*lccircrd(cir,2,i)+LocX(i)
+      circrd(cir,2,i)=-sin(Rot(i))*lccircrd(cir,1,i)+cos(Rot(i))*lccircrd(cir,2,i)+Locz(i)
+      circrd(cir,3,i)=lccircrd(cir,3,i)     !!!包络圆半径不变
+   *enddo
+*enddo
+ 
+*do,i,2,CNUM-2,1
+  *do,cir,1,cirnum,1
+      circrd(cir,1,i)=cos(Rot(i))*lccircrd(cir,1,i)+sin(Rot(i))*lccircrd(cir,2,i)+LocX(i)
+      circrd(cir,2,i)=-sin(Rot(i))*lccircrd(cir,1,i)+cos(Rot(i))*lccircrd(cir,2,i)+Locz(i)
+      circrd(cir,3,i)=lccircrd(cir,3,i)     !!!包络圆半径不变
+   *enddo
+*enddo
+ 
+c=0
+i=1
+j=2
+      *do,in,1,cirnum,1
+        *do,jn,1,cirnum,1
+            c=c+1
+            Cst(c)=(circrd(in,1,i)-circrd(jn,1,j))**2+(circrd(in,2,i)-circrd(jn,2,j))**2-(circrd(in,3,i)+circrd(jn,3,j))**2
+       
+         *enddo
+      *enddo
+ 
+
+*do,i,1,16,1
+ Csen(i,6)=( Cst(i)-cstold(i))/dda
+*enddo
+ 
+ 
+Rot(2)=Rot(2)-dda                !对变量com2a进行恢复
+Rot(4)=Rot(4)+dda
+ 
+factord=100 
+*do,i,1,16,1
+   constraint_%i%=cstold(i)/factord                !对干涉函数，及其灵敏度进行缩小，匹配灵敏度
+   *do,j,1,cnum/2,1
+      Csen_%i%_%j%x=Csen(i,3*j-2)/factord
+      Csen_%i%_%j%z=Csen(i,3*j-1)/factord
+      Csen_%i%_%j%a=Csen(i,3*j)/factord
+   *enddo
+*enddo
+
+mini=1
+mindis=constraint_1
+ *do,i,1,16,1
+ *if,constraint_%i%,LT,mindis,then
+  mindis=constraint_%i%
+  mini=i
+ *endif
+*enddo
+
+factor1=50
+volum1=volum/factor1
+volumsen=2/factor1
+
+
+ 
+ 
+!#########################################################################
+!#    Write Neutral File: REsult & Sensitivity                         ######
+!#########################################################################
+ 
+ 
+*cfopen,pztcouplingnew_i%iter%,cap              !!!与boss联合使用标记
+ 
+*vwrite,
+(":INFO")
+*vwrite,
+("   Topology Optimization Developped")
+ 
+*vwrite,
+(":VAR_TYPE")
+*vwrite,
+("   UNKNOWN")
+ 
+*vwrite,
+(":VARIABLE")
+*vwrite,vari(1)
+(A10)
+*vwrite,gvari(1)
+(A10)
+
+ *vwrite,
+(":FUNCTION")
+*vwrite,
+("   compl")         !!!目标函数
+*vwrite,
+("   compl")
+*vwrite,
+("   1")
+*vwrite,compl
+(e19.5)
+*vwrite,ven(1)
+(e19.5) 
+ *DO,i,1,cnum/2,1
+   *vwrite,comp_%i%x
+   (e19.3) 
+   *vwrite,comp_%i%z
+   (e19.3)
+   *vwrite,comp_%i%a
+   (e19.3)
+*ENDDO
+
+
+ *vwrite,
+(":FUNCTION")
+*vwrite,
+("   fysum")         !!!目标函数
+*vwrite,
+("   fysum")
+*vwrite,
+("   1")
+*vwrite,fysum
+(e19.5)
+*vwrite,fsen(1)
+(e19.5) 
+ *DO,i,1,cnum/2,1
+   *vwrite,fysum_%i%x
+   (e19.3) 
+   *vwrite,fysum_%i%z
+   (e19.3)
+   *vwrite,fysum_%i%a
+   (e19.3)
+*ENDDO
+
+*vwrite,
+(":FUNCTION")
+*vwrite,
+("   volum")
+*vwrite,
+("   Volume")
+*vwrite,
+("   1")
+*vwrite,volum1
+(f15.5)
+*do,i,1,ENUM,1
+   *vwrite,volumsen
+   (f15.5)
+*enddo 
+*DO,i,1,cnum/2,1
+   *vwrite,0
+   (e19.3)
+   *vwrite,0
+   (e19.3)
+   *vwrite,0
+   (e19.3)
+*ENDDO
+ 
+ 
+
+ 
+*vwrite,
+(":FUNCTION")
+*vwrite,
+("   mindis")
+*vwrite,
+("   mindis")
+*vwrite,
+("  1")
+ 
+   *vwrite,mindis
+   (f15.5)
+    *do,j,1,enum,1
+      *vwrite,
+      ("   0")
+   *enddo
+   *vwrite,Csen_%mini%_1x
+   (e19.5)
+   *vwrite,Csen_%mini%_1z
+   (e19.5)
+   *vwrite,Csen_%mini%_1a
+   (e19.5)
+   *vwrite,Csen_%mini%_2x
+   (e19.5)
+   *vwrite,Csen_%mini%_2z
+   (e19.5)
+   *vwrite,Csen_%mini%_2a
+   (e19.5)
+ 
+  
+*cfclos

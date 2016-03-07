@@ -1,0 +1,308 @@
+!第一条边
+mpoint=length/ees1+1  !计算第ii个顶点 或者边对象的需要加载的点数目
+ 
+  
+  *do,i,1,mpoint,1    !偏置节点
+  
+    csys,5+epro
+    wpcsys,,5+epro
+    mmx1=asspro(1,1)
+    mmz1=asspro(1,2)
+    esel,s,type,,epro                          
+    nsle,s,1  
+    assgingnode=node(-length/2+(i-1)*ees1,0,-width/2)   !？？现在这个节点和其它节点不重合，重合时候是否能唯一选择呢
+    csys,0                !组件1加力      
+    wpcsys,,0       
+    allsel,all
+    anx=nx(assgingnode)                !？？这种选取节点的方式，要求设计域的单元都是一样的，很规整。
+    anz=nz(assgingnode)
+    quyux=MOD(anx,ees)
+    quyuz=MOD(anz+66,ees)            !
+    
+    esel,s,type,,4
+    nsle,s,1      
+    anode(1)=node(anx-quyux,0,anz-quyuz)             !i
+    anode(2)=node(anx-quyux,0,anz-quyuz+ees)         !j
+    anode(3)=node(anx-quyux+ees,0,anz-quyuz)         !l
+    anode(4)=node(anx-quyux+ees,0,anz-quyuz+ees)     !k
+     
+    t=quyux/ees*2-1                                        !偏置一下中心，使得 -1<t<1
+    s=quyuz/ees*2-1                                        !偏置一下中心，使得 -1<s<1
+    N1=(1-s)*(1-t)/4                                 ! Ui________Ul
+    mx1=mmx1*N1                                      !   |   |   |  one element
+    mz1=mmz1*N1                                      !   |___|__t| 
+                                                     !   |   |   |   x+
+    N2=(1+s)*(1-t)/4                                 !   |___|s__|   
+    mx2=mmx1*N2                                      ! Uj         Uk
+    mz2=mmz1*N2                                      !       z+
+                    
+    N3=(1-s)*(1+t)/4                
+    mx3=mmx1*N3                
+    mz3=mmz1*N3                
+     
+    N4=(1+s)*(1+t)/4 
+    mx4=mmx1*N4                                                             
+    mz4=mmz1*N4 
+    
+    
+    allsel,all
+    esel,s,type,,4
+    nsle,s,1 
+    nsel,r,node,,anode(1)
+    f,all,mx,mx1
+    f,all,mz,mz1
+    allsel,all
+    
+    esel,s,type,,4
+    nsle,s,1 
+    nsel,r,node,,anode(2)
+    f,all,mx,mx2
+    f,all,mz,mz2
+    allsel,all
+    
+    esel,s,type,,4
+    nsle,s,1 
+    nsel,r,node,,anode(3)
+    f,all,mx,mx3
+    f,all,mz,mz3
+    allsel,all
+    
+    esel,s,type,,4
+    nsle,s,1 
+    nsel,r,node,,anode(4)
+    f,all,mx,mx4
+    f,all,mz,mz4
+    allsel,all
+      
+  *enddo
+
+!第二条边
+mpoint=width/ees1+1
+
+*do,i,1,mpoint,1    !偏置节点
+  
+    csys,5+epro
+    wpcsys,,5+epro
+    mmx1=asspro(2,1)
+    mmz1=asspro(2,2)
+    esel,s,type,,epro                          
+    nsle,s,1  
+    assgingnode=node(-length/2,0,-width/2+(i-1)*ees1)   !？？现在这个节点和其它节点不重合，重合时候是否能唯一选择呢
+    csys,0                !组件1加力      
+    wpcsys,,0       
+    allsel,all
+    anx=nx(assgingnode)                !？？这种选取节点的方式，要求设计域的单元都是一样的，很规整。
+    anz=nz(assgingnode)
+    quyux=MOD(anx,ees)
+    quyuz=MOD(anz+66,ees)
+    
+    esel,s,type,,4
+    nsle,s,1      
+    anode(1)=node(anx-quyux,0,anz-quyuz)             !i
+    anode(2)=node(anx-quyux,0,anz-quyuz+ees)         !j
+    anode(3)=node(anx-quyux+ees,0,anz-quyuz)         !l
+    anode(4)=node(anx-quyux+ees,0,anz-quyuz+ees)     !k
+     
+    t=quyux/ees*2-1                                        !偏置一下中心，使得 -1<t<1
+    s=quyuz/ees*2-1                                        !偏置一下中心，使得 -1<s<1
+    N1=(1-s)*(1-t)/4                                 ! Ui________Ul
+    mx1=mmx1*N1                                      !   |   |   |  one element
+    mz1=mmz1*N1                                      !   |___|__t| 
+                                                     !   |   |   |   x+
+    N2=(1+s)*(1-t)/4                                 !   |___|s__|   
+    mx2=mmx1*N2                                      ! Uj         Uk
+    mz2=mmz1*N2                                      !       z+
+                    
+    N3=(1-s)*(1+t)/4                
+    mx3=mmx1*N3                
+    mz3=mmz1*N3                
+     
+    N4=(1+s)*(1+t)/4 
+    mx4=mmx1*N4                                                             
+    mz4=mmz1*N4 
+    
+    
+    allsel,all
+    esel,s,type,,4
+    nsle,s,1 
+    nsel,r,node,,anode(1)
+    f,all,mx,mx1
+    f,all,mz,mz1
+    allsel,all
+    
+    esel,s,type,,4
+    nsle,s,1 
+    nsel,r,node,,anode(2)
+    f,all,mx,mx2
+    f,all,mz,mz2
+    allsel,all
+    
+    esel,s,type,,4
+    nsle,s,1 
+    nsel,r,node,,anode(3)
+    f,all,mx,mx3
+    f,all,mz,mz3
+    allsel,all
+    
+    esel,s,type,,4
+    nsle,s,1 
+    nsel,r,node,,anode(4)
+    f,all,mx,mx4
+    f,all,mz,mz4
+    allsel,all
+      
+  *enddo
+  
+!第三条边  
+mpoint=length/ees1+1  !计算第ii个顶点 或者边对象的需要加载的点数目
+  
+  *do,i,1,mpoint,1    !偏置节点
+  
+    csys,5+epro
+    wpcsys,,5+epro
+    mmx1=asspro(3,1)
+    mmz1=asspro(3,2)
+    esel,s,type,,epro                          
+    nsle,s,1  
+    assgingnode=node(-length/2+(i-1)*ees1,0,width/2)   !？？现在这个节点和其它节点不重合，重合时候是否能唯一选择呢
+    csys,0                !组件1加力      
+    wpcsys,,0       
+    allsel,all
+    anx=nx(assgingnode)                !？？这种选取节点的方式，要求设计域的单元都是一样的，很规整。
+    anz=nz(assgingnode)
+    quyux=MOD(anx,ees)
+    quyuz=MOD(anz+66,ees)
+    
+    esel,s,type,,4
+    nsle,s,1      
+    anode(1)=node(anx-quyux,0,anz-quyuz)             !i
+    anode(2)=node(anx-quyux,0,anz-quyuz+ees)         !j
+    anode(3)=node(anx-quyux+ees,0,anz-quyuz)         !l
+    anode(4)=node(anx-quyux+ees,0,anz-quyuz+ees)     !k
+     
+    t=quyux/ees*2-1                                        !偏置一下中心，使得 -1<t<1
+    s=quyuz/ees*2-1                                        !偏置一下中心，使得 -1<s<1
+    N1=(1-s)*(1-t)/4                                 ! Ui________Ul
+    mx1=mmx1*N1                                      !   |   |   |  one element
+    mz1=mmz1*N1                                      !   |___|__t| 
+                                                     !   |   |   |   x+
+    N2=(1+s)*(1-t)/4                                 !   |___|s__|   
+    mx2=mmx1*N2                                      ! Uj         Uk
+    mz2=mmz1*N2                                      !       z+
+                    
+    N3=(1-s)*(1+t)/4                
+    mx3=mmx1*N3                
+    mz3=mmz1*N3                
+     
+    N4=(1+s)*(1+t)/4 
+    mx4=mmx1*N4                                                             
+    mz4=mmz1*N4 
+    
+    
+    allsel,all
+    esel,s,type,,4
+    nsle,s,1 
+    nsel,r,node,,anode(1)
+    f,all,mx,mx1
+    f,all,mz,mz1
+    allsel,all
+    
+    esel,s,type,,4
+    nsle,s,1 
+    nsel,r,node,,anode(2)
+    f,all,mx,mx2
+    f,all,mz,mz2
+    allsel,all
+    
+    esel,s,type,,4
+    nsle,s,1 
+    nsel,r,node,,anode(3)
+    f,all,mx,mx3
+    f,all,mz,mz3
+    allsel,all
+    
+    esel,s,type,,4
+    nsle,s,1 
+    nsel,r,node,,anode(4)
+    f,all,mx,mx4
+    f,all,mz,mz4
+    allsel,all
+      
+  *enddo
+
+!第四条边
+mpoint=width/ees1+1
+
+*do,i,1,mpoint,1    !偏置节点
+  
+    csys,5+epro
+    wpcsys,,5+epro
+    mmx1=asspro(4,1)
+    mmz1=asspro(4,2)
+    esel,s,type,,epro                          
+    nsle,s,1  
+    assgingnode=node(length/2,0,-width/2+(i-1)*ees1)   !？？现在这个节点和其它节点不重合，重合时候是否能唯一选择呢
+    csys,0                !组件1加力      
+    wpcsys,,0       
+    allsel,all
+    anx=nx(assgingnode)                !？？这种选取节点的方式，要求设计域的单元都是一样的，很规整。
+    anz=nz(assgingnode)
+    quyux=MOD(anx,ees)
+    quyuz=MOD(anz+66,ees)
+    
+    esel,s,type,,4
+    nsle,s,1      
+    anode(1)=node(anx-quyux,0,anz-quyuz)             !i
+    anode(2)=node(anx-quyux,0,anz-quyuz+ees)         !j
+    anode(3)=node(anx-quyux+ees,0,anz-quyuz)         !l
+    anode(4)=node(anx-quyux+ees,0,anz-quyuz+ees)     !k
+     
+    t=quyux/ees*2-1                                        !偏置一下中心，使得 -1<t<1
+    s=quyuz/ees*2-1                                        !偏置一下中心，使得 -1<s<1
+    N1=(1-s)*(1-t)/4                                 ! Ui________Ul
+    mx1=mmx1*N1                                      !   |   |   |  one element
+    mz1=mmz1*N1                                      !   |___|__t| 
+                                                     !   |   |   |   x+
+    N2=(1+s)*(1-t)/4                                 !   |___|s__|   
+    mx2=mmx1*N2                                      ! Uj         Uk
+    mz2=mmz1*N2                                      !       z+
+                    
+    N3=(1-s)*(1+t)/4                
+    mx3=mmx1*N3                
+    mz3=mmz1*N3                
+     
+    N4=(1+s)*(1+t)/4 
+    mx4=mmx1*N4                                                             
+    mz4=mmz1*N4 
+    
+    
+    allsel,all
+    esel,s,type,,4
+    nsle,s,1 
+    nsel,r,node,,anode(1)
+    f,all,mx,mx1
+    f,all,mz,mz1
+    allsel,all
+    
+    esel,s,type,,4
+    nsle,s,1 
+    nsel,r,node,,anode(2)
+    f,all,mx,mx2
+    f,all,mz,mz2
+    allsel,all
+    
+    esel,s,type,,4
+    nsle,s,1 
+    nsel,r,node,,anode(3)
+    f,all,mx,mx3
+    f,all,mz,mz3
+    allsel,all
+    
+    esel,s,type,,4
+    nsle,s,1 
+    nsel,r,node,,anode(4)
+    f,all,mx,mx4
+    f,all,mz,mz4
+    allsel,all
+      
+  *enddo
